@@ -95,13 +95,16 @@ for required in ("README.md", "COMPATIBILITY.md", "PORTING.md", "SECURITY.md",
 for path in ROOT.rglob("*"):
     if path.is_symlink():
         fail(f"symlink is not permitted in public package: {path.relative_to(ROOT)}")
+    # Generated Python bytecode is excluded by package_release.py; do not fail
+    # validation solely because a local interpreter produced it.
+    if "__pycache__" in path.parts or path.suffix in {".pyc", ".pyo"}:
+        continue
     if not path.is_file():
         continue
     rel = path.relative_to(ROOT)
-    parts = {p.lower() for p in rel.parts}
     name = path.name.lower()
-    if "__pycache__" in parts or path.suffix in {".pyc", ".pyo"}:
-        fail(f"transient Python artifact: {rel}")
+    if name in {".ds_store", "thumbs.db"} or name.startswith("._"):
+        fail(f"OS junk file: {rel}")
     if name in {".env", ".env.local", "id_rsa", "id_ed25519", "credentials.json"}:
         fail(f"secret-shaped filename: {rel}")
     if name.endswith((".pem", ".p12", ".pfx")):
