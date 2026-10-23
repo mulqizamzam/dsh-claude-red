@@ -31,6 +31,8 @@ if package.get("version") != "0.2.1-rc.2":
     fail("version must equal 0.2.1-rc.2")
 if package.get("engines", {}).get("node") != ">=20.19.0":
     fail("Node.js engine declaration mismatch")
+if package.get("engines", {}).get("dsh") != "0.2.1-rc.2":
+    fail("DSH engine declaration must pin 0.2.1-rc.2")
 if package.get("dsh", {}).get("bundle", {}).get("patch") != "./cordis.patch.yml":
     fail("DSH bundle patch declaration missing or incorrect")
 
