@@ -47,3 +47,22 @@ jobs:
         run: |
           npx --yes @deepseek-ai/dsh@0.2.1-rc.2 --profile web --dump-config > /tmp/dsh-profile.yml
           grep -F 'dsh-claude-red' /tmp/dsh-profile.yml
+      - name: Import installed provider and load every skill
+        run: |
+          cd "${DSH_HOME:-$HOME/.dsh}/profiles/web"
+          node --input-type=module <<'NODE'
+          import assert from 'node:assert/strict';
+          import { apply } from 'dsh-claude-red';
+          const providers = [];
+          apply({ skills: { registerProvider(factory) { providers.push(factory()); } } });
+          assert.equal(providers.length, 1);
+          const provider = providers[0];
+          const skills = await provider.list();
+          assert.equal(skills.length, 12);
+          for (const skill of skills) {
+            const loaded = await provider.get(skill);
+            assert.equal(loaded.name, skill.name);
+            assert.ok(loaded.content.length > 500, `empty skill: ${skill.name}`);
+          }
+          console.log(`PASS: installed DSH package loaded ${skills.length} skill bodies.`);
+          NODE
