@@ -1,72 +1,119 @@
 #!/usr/bin/env python3
-"""Dependency-free structural and safety checks for the DSH Claude-Red bundle."""
+"""Dependency-free structural and safety checks for the DSH plugin package."""
 from __future__ import annotations
-import json, re, sys
+
+import json
+import re
+import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-EXPECTED = {
-'engagement-scope','secure-code-review','web-api-assessment','dependency-supply-chain',
-'ci-cd-security','cloud-container-posture','identity-access-review','fuzzing-crash-triage',
-'incident-triage','threat-modeling','security-reporting','remediation-retest'
+EXPECTED_SKILLS = {
+    "engagement-scope", "secure-code-review", "web-api-assessment",
+    "dependency-supply-chain", "ci-cd-security", "cloud-container-posture",
+    "identity-access-review", "fuzzing-crash-triage", "incident-triage",
+    "threat-modeling", "security-reporting", "remediation-retest",
 }
-errors=[]; warnings=[]
-def fail(msg): errors.append(msg)
+errors: list[str] = []
+
+def fail(message: str) -> None:
+    errors.append(message)
+
 try:
-    pkg=json.loads((ROOT/'package.json').read_text(encoding='utf-8'))
+    package = json.loads((ROOT / "package.json").read_text(encoding="utf-8"))
 except Exception as exc:
-    print(f'FAIL: package.json cannot be parsed: {exc}'); sys.exit(1)
-if pkg.get('name')!='dsh-claude-red': fail('Unexpected package name')
-if pkg.get('version')!='0.2.1-rc.2': fail('Version must equal 0.2.1-rc.2')
-if pkg.get('dsh',{}).get('bundle',{}).get('patch')!='./cordis.patch.yml': fail('DSH bundle patch declaration is missing or incorrect')
-patch=(ROOT/'cordis.patch.yml')
-if not patch.is_file(): fail('Missing cordis.patch.yml')
-elif "name: 'dsh-claude-red" not in patch.read_text(encoding='utf-8'): fail('Patch does not insert provider row dsh-claude-red')
-if pkg.get('engines',{}).get('node')!='>=20.19.0': fail('Node engine declaration mismatch')
-index=(ROOT/'index.js')
-if not index.is_file(): fail('Missing index.js')
+    print(f"FAIL: package.json cannot be parsed: {exc}")
+    raise SystemExit(1)
+
+if package.get("name") != "dsh-claude-red":
+    fail("unexpected package name")
+if package.get("version") != "0.2.1-rc.2":
+    fail("version must equal 0.2.1-rc.2")
+if package.get("engines", {}).get("node") != ">=20.19.0":
+    fail("Node.js engine declaration mismatch")
+if package.get("dsh", {}).get("bundle", {}).get("patch") != "./cordis.patch.yml":
+    fail("DSH bundle patch declaration missing or incorrect")
+
+patch_path = ROOT / "cordis.patch.yml"
+if not patch_path.is_file():
+    fail("missing cordis.patch.yml")
+elif "name: 'dsh-claude-red'" not in patch_path.read_text(encoding="utf-8"):
+    fail("patch does not insert provider row dsh-claude-red")
+
+index_path = ROOT / "index.js"
+if not index_path.is_file():
+    fail("missing index.js")
 else:
-    src=index.read_text(encoding='utf-8')
-    for token in ["export const name = 'dsh-claude-red'", "export const inject = ['skills']", 'registerProvider', 'source: \'bundled\'']']:
-        if token not in src: fail(f'index.js missing provider contract marker: {token}')
-actual=set()
-for folder in sorted((ROOT/'skills').iterdir()) if (ROOT/'skills').exists() else []:
-    if folder.is_symlink(): fail(f'Symlinked skill folder: {folder.name}'); continue
-    if not folder.is_dir(): fail(f'Unexpected non-directory under skills/: {folder.name}'); continue
-    file=folder/'SKILL.md'
-    if not file.is_file() or file.is_symlink(): fail(f'Missing regular SKILL.md: {folder.name}'); continue
-    actual.add(folder.name)
-    content=file.read_text(encoding='utf-8')
-    m=re.match(r'^---\s*\n([s\S]*?)\n---\s*\n([\s\S]+)$',content)
-    if not m: fail(f'Invalid frontmatter/body structure: {folder.name}'); continue
-    fm=m.group(1); body=m.group(2).strip()
-    nm=re.search(r'^name:\s*([a-z0-9-]+)\s*$',m,re.M)
-    desc=re.search(r'^description:\s*"(.+)"\s*$',fm,re.M)
-    if not nm or nm.group(1)!=folder.name: fail(f'Frontmatter name must match folder: {folder.name}')
-    if not desc or len(desc.group(1))<30: fail(f'Missing/short description: {folder.name}')
-    if not body or len(body)<500: fail(f'Skill body unexpectedly short: {folder.name}')
-    for term in ['TODO_REPLACE_ME','<YOUR_TOKEN>','/Users/','/home/']:
-        if term in content: fail(f'Placeholder or local absolute path in {folder.name}: {term}')
-if actual!=EXPECTED:
-    fail(f'Skill inventory mismatch; missing={sorted(EXPECTED-actual)}, extra={sorted(actual-EXPECTED) }')
-# Detect secret-shaped filenames and common local artifacts.
-for p in ROOT.rglob('*'):
-    rel=p.relative_to(ROOT).as_posix()
-    parts={part.lower() for part in p.parts}
-    if p.is_symlink(): fail(f'Symlink is not allowed: {rel}')
-    if '__pycache__' in parts or p.suffix in {'.pyc','.pyo'}: fail(f'Transient Python artifact: {rel}')
-    if p.name in {'.DS_Store','Thumbs.db'} or p.name.startswith('._'): fail(f'OS junk file: {rel}')
-    if p.is_file() and (p.name.lower() in {'.env','.env.local','id_rsa','id_ed25519','credentials.json'} or p.name.lower().endswith(('.pem','.p12','.pfx'))): fail(f'Secret-shaped file: {rel}')
-    if len(rel)>240: fail(f'Path too long for portable package: {rel}')
-if not (ROOT/'README.md').is_file(): fail('README.md missing')
-if not (ROOT/'LICENSE').is_file(): fail('LICENSE missing')
-if not (ROOT/'NOTICE.md').is_file(): fail('NOTICE.md missing')
-for forbidden in ['offensive-edr-evasion','offensive-phishing','offensive-keylogger-arch','offensive-persistence','offensive-data-exfiltration','offensive-anti-forensics','offensive-c2-frameworks']:
-    if forbidden in actual: fail(f'Excluded high-risk source skill unexpectedly bundled: {forbidden}')
+    source = index_path.read_text(encoding="utf-8")
+    for token in ("export const name = 'dsh-claude-red'",
+                  "export const inject = ['skills']", "registerProvider", "source: 'bundled'"):
+        if token not in source:
+            fail(f"index.js missing provider contract marker: {token}")
+
+actual_skills: set[str] = set()
+skills_root = ROOT / "skills"
+for path in sorted(skills_root.iterdir()) if skills_root.exists() else []:
+    if path.is_symlink():
+        fail(f"symlink not permitted: {path.relative_to(ROOT)}")
+        continue
+    if not path.is_dir():
+        fail(f"unexpected item under skills/: {path.name}")
+        continue
+    skill_file = path / "SKILL.md"
+    if not skill_file.is_file() or skill_file.is_symlink():
+        fail(f"missing regular SKILL.md: {path.name}")
+        continue
+    actual_skills.add(path.name)
+    content = skill_file.read_text(encoding="utf-8")
+    match = re.match(r"^---\s*\n(.*?)\n---\s*\n(.*)$", content, re.S)
+    if not match:
+        fail(f"invalid frontmatter/body structure: {path.name}")
+        continue
+    front, body = match.groups()
+    name = re.search(r"^name:\s*([a-z0-9-]+)\s*$", front, re.M)
+    description = re.search(r'^description:\s*"(.+)"\s*$', front, re.M)
+    if not name or name.group(1) != path.name:
+        fail(f"frontmatter name must match folder: {path.name}")
+    if not description or len(description.group(1)) < 30:
+        fail(f"missing or short description: {path.name}")
+    if len(body.strip()) < 500:
+        fail(f"skill body too short: {path.name}")
+    for marker in ("TODO_REPLACE_ME", "<YOUR_TOKEN>", "/Users/", "/home/"):
+        if marker in content:
+            fail(f"placeholder or local absolute path in {path.name}: {marker}")
+
+if actual_skills != EXPECTED_SKILLS:
+    fail(f"skill inventory mismatch; missing={sorted(EXPECTED_SKILLS-actual_skills)}, "
+         f"extra={sorted(actual_skills-EXPECTED_SKILLS)}")
+
+for required in ("README.md", "COMPATIBILITY.md", "PORTING.md", "SECURITY.md",
+                 "NOTICE.md", "LICENSE", "CHANGELOG.md", "tests/smoke-provider.mjs",
+                 "scripts/package_release.py", ".github/workflows/validate.yml"):
+    if not (ROOT / required).is_file():
+        fail(f"missing required file: {required}")
+
+for path in ROOT.rglob("*"):
+    if path.is_symlink():
+        fail(f"symlink is not permitted in public package: {path.relative_to(ROOT)}")
+    if not path.is_file():
+        continue
+    rel = path.relative_to(ROOT)
+    parts = {p.lower() for p in rel.parts}
+    name = path.name.lower()
+    if "__pycache__" in parts or path.suffix in {".pyc", ".pyo"}:
+        fail(f"transient Python artifact: {rel}")
+    if name in {".env", ".env.local", "id_rsa", "id_ed25519", "credentials.json"}:
+        fail(f"secret-shaped filename: {rel}")
+    if name.endswith((".pem", ".p12", ".pfx")):
+        fail(f"private-key/certificate material not permitted: {rel}")
+    if len(rel.as_posix()) > 240:
+        fail(f"path too long for a portable archive: {rel}")
+
 if errors:
-    print(f'FAIL: {len(errors)} issue(s)')
-    for e in errors: print(f' - {e}')
-    sys.exit(1)
-print(f'PASS: package metadata, DSH bundle declaration, safe paths, license/notice, and {len(actual)} skill files validated.')
-if warnings:
-    for w in warnings: print(f'WARN: {w}')
+    print(f"FAIL: {len(errors)} issue(s)")
+    for error in errors:
+        print(f" - {error}")
+    raise SystemExit(1)
+
+print(f"PASS: package metadata, DSH bundle declaration, safe paths, license/notice, and "
+      f"{len(actual_skills)} skill files validated.")
