@@ -14,15 +14,17 @@ The implementation follows the DSH `0.2.1-rc.2` source contract: an installable 
 
 ## Validation matrix
 
-| Check | Command/evidence | Status semantics |
+| Check | Evidence | Result |
 |---|---|---|
-| Package metadata / paths / skill frontmatter | `python3 scripts/validate_package.py` | Locally verified when exit code is 0 |
-| Provider registration / list / load | `node tests/smoke-provider.mjs` | Stubbed provider contract; not a live DSH integration test |
-| Combined local suite | `npm run check` | Executes both local checks |
-| Reproducible source archive | Run `scripts/package_release.py` twice and compare SHA-256 | Validates deterministic archive creation |
-| Install into a clean DSH profile | `dsh plugin --profile web add github:mulqizamzam/dsh-claude-red#main`, then restart DSH | Must be run against actual DSH `0.2.1-rc.2`; not implied by local tests |
-| Clean-session skill invocation | Invoke a skill in a fresh `web` session | Must be run against actual runtime; verify catalog and full-body loading |
-| GitHub Actions | `.github/workflows/validate.yml` | CI result must be read from the target repository after push |
+| Package metadata, paths, skill frontmatter and public-package hygiene | `python3 scripts/validate_package.py` in GitHub Actions | PASS |
+| Provider registration, 12-skill catalog, full-body loading and error paths | `node tests/smoke-provider.mjs` in GitHub Actions | PASS; uses a local registry stub |
+| Repeatable release archive | Two independently generated ZIPs compared with `cmp` and SHA-256 | PASS; identical SHA-256: `3f68be23fb77ad55f2b3be71b816257f8b5a294daefd5324716e9dc5a391d30a` |
+| Install into a clean DSH web profile | GitHub Actions run [40003147618](https://github.com/mulqizamzam/dsh-claude-red/actions/runs/40003147618): install with `dsh plugin --profile web add`, then dump and inspect the composed profile | PASS |
+| Import the installed package using Node in the DSH profile | Same GitHub Actions run: import `dsh-claude-red`, register the provider, list skills, and load all 12 bodies | PASS |
+| Full model-session invocation | Requires a configured model credential and actual model request | NOT RUN; provider/profile checks do not prove model-call behavior |
+| CI result on the published branch | [GitHub Actions run 40003147618](https://github.com/mulqizamzam/dsh-claude-red/actions/runs/40003147618) | PASS |
+
+The GitHub Actions run validates the real DSH `0.2.1-rc.2` package-install and provider-load path without making a model API request. It does not claim an end-to-end model conversation has been tested.
 
 ## Upgrade policy
 
