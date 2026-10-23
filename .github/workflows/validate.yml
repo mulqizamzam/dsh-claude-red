@@ -25,3 +25,25 @@ jobs:
           python3 scripts/package_release.py /tmp/release-b.zip
           sha256sum /tmp/release-a.zip /tmp/release-b.zip
           cmp /tmp/release-a.zip /tmp/release-b.zip
+          cp /tmp/release-a.zip /tmp/dsh-claude-red-0.2.1-rc.2.zip
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dsh-claude-red-0.2.1-rc.2
+          path: /tmp/dsh-claude-red-0.2.1-rc.2.zip
+          if-no-files-found: error
+
+  runtime-integration:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install pnpm for external profile plugins
+        run: npm install --global pnpm@10
+      - name: Install this plugin into the pinned DSH web profile
+        run: npx --yes @deepseek-ai/dsh@0.2.1-rc.2 plugin --profile web add github:mulqizamzam/dsh-claude-red#main
+      - name: Verify the composed profile contains this plugin
+        run: |
+          npx --yes @deepseek-ai/dsh@0.2.1-rc.2 --profile web --dump-config > /tmp/dsh-profile.yml
+          grep -F 'dsh-claude-red' /tmp/dsh-profile.yml
