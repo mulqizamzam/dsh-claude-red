@@ -59,11 +59,11 @@ for path in sorted(skills_root.iterdir()) if skills_root.exists() else []:
     if not path.is_dir():
         fail(f"unexpected item under skills/: {path.name}")
         continue
+    actual_skills.add(path.name)
     skill_file = path / "SKILL.md"
     if not skill_file.is_file() or skill_file.is_symlink():
         fail(f"missing regular SKILL.md: {path.name}")
         continue
-    actual_skills.add(path.name)
     content = skill_file.read_text(encoding="utf-8")
     match = re.match(r"^---\s*\n(.*?)\n---\s*\n(.*)$", content, re.S)
     if not match:
@@ -93,18 +93,16 @@ for required in ("README.md", "COMPATIBILITY.md", "PORTING.md", "SECURITY.md",
         fail(f"missing required file: {required}")
 
 for path in ROOT.rglob("*"):
+    rel = path.relative_to(ROOT)
     if path.is_symlink():
-        fail(f"symlink is not permitted in public package: {path.relative_to(ROOT)}")
-    # Generated Python bytecode is excluded by package_release.py; do not fail
-    # validation solely because a local interpreter produced it.
-    if "__pycache__" in path.parts or path.suffix in {".pyc", ".pyo"}:
+        fail(f"symlink is not permitted in public package: {rel}")
         continue
     if not path.is_file():
         continue
-    rel = path.relative_to(ROOT)
+    parts = {p.lower() for p in rel.parts}
     name = path.name.lower()
-    if name in {".ds_store", "thumbs.db"} or name.startswith("._"):
-        fail(f"OS junk file: {rel}")
+    if "__pycache__" in parts or path.suffix in {".pyc", ".pyo"}:
+        fail(f"transient Python artifact: {rel}")
     if name in {".env", ".env.local", "id_rsa", "id_ed25519", "credentials.json"}:
         fail(f"secret-shaped filename: {rel}")
     if name.endswith((".pem", ".p12", ".pfx")):
