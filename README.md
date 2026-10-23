@@ -42,7 +42,7 @@ npx @deepseek-ai/dsh@0.2.1-rc.2 web
 Stop it, then install this public GitHub bundle into the `web` profile:
 
 ```bash
-npx @deepseek-ai/dsh@0.2.1-rc.2 plugin --profile web add github:mulqizamzam/dsh-claude-red#main
+npx @deepseek-ai/dsh@0.2.1-rc.2 plugin --profile web add github:mulqizamzam/dsh-claude-red#cdc826f2512b8de2fcecc7e758d132f7a98b3987
 ```
 
 Restart the profile:
@@ -53,7 +53,7 @@ npx @deepseek-ai/dsh@0.2.1-rc.2 --profile web
 
 The bundle adds one provider row, `dsh-claude-red`. On a base-backed profile, the DSH skill registry and model-facing loader are provided by the base composition. Ask the model to load a skill by name or use the skill-invocation syntax supported by your profile (for example, `/secure-code-review`).
 
-**Pinning:** these instructions track `main` until an immutable release tag exists. For repeatable production use, pin an immutable commit or validated release tag instead of tracking `main`.
+**Pinning:** the example above pins a specific reviewed commit so repeated installs resolve to the same source tree. After installing a later validated release, replace the commit SHA with that release's immutable tag or commit.
 
 ## First tasks to try
 
