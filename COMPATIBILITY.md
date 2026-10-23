@@ -18,7 +18,7 @@ The implementation follows the DSH `0.2.1-rc.2` source contract: an installable 
 |---|---|---|
 | Package metadata, paths, skill frontmatter and public-package hygiene | `python3 scripts/validate_package.py` in GitHub Actions | PASS |
 | Provider registration, 12-skill catalog, full-body loading and error paths | `node tests/smoke-provider.mjs` in GitHub Actions | PASS; uses a local registry stub |
-| Repeatable release archive | Two independently generated ZIPs compared with `cmp` and SHA-256 | PASS; identical SHA-256: `3f68be23fb77ad55f2b3be71b816257f8b5a294daefd5324716e9dc5a391d30a` |
+| Repeatable release archive | Two independently generated ZIPs compared with `cmp` and SHA-256 | PASS; byte-for-byte identical; SHA-256 printed in the workflow log |
 | Install into a clean DSH web profile | GitHub Actions run [40003147618](https://github.com/mulqizamzam/dsh-claude-red/actions/runs/40003147618): install with `dsh plugin --profile web add`, then dump and inspect the composed profile | PASS |
 | Import the installed package using Node in the DSH profile | Same GitHub Actions run: import `dsh-claude-red`, register the provider, list skills, and load all 12 bodies | PASS |
 | Full model-session invocation | Requires a configured model credential and actual model request | NOT RUN; provider/profile checks do not prove model-call behavior |
