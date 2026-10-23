@@ -1,0 +1,27 @@
+name: Validate DSH plugin
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  package:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+      - name: Verify package metadata and skills
+        run: python3 scripts/validate_package.py
+      - name: Smoke-test DSH skill provider contract
+        run: node tests/smoke-provider.mjs
+      - name: Build reproducible release archives
+        run: |
+          python3 scripts/package_release.py /tmp/release-a.zip
+          python3 scripts/package_release.py /tmp/release-b.zip
+          sha256sum /tmp/release-a.zip /tmp/release-b.zip
+          cmp /tmp/release-a.zip /tmp/release-b.zip
